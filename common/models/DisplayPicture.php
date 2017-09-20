@@ -1,8 +1,11 @@
 <?php
 namespace common\models;
 
-class DisplayPicture{
+use common\models\Model;
+
+class DisplayPicture extends Model{
     public $completed = false;
+    public $_errors = [];
     static $colorList = [
         [
             'r' => 231,
@@ -15,15 +18,44 @@ class DisplayPicture{
             'b' => 132,
         ]
     ];
+    static $supportedSizes = [
+        128,
+        256,
+        512,
+        1024,
+        2048
+    ];
+
+    public function rules(){
+        return [
+            [['width', 'height', 'padding'], 'number'],
+            [['blocks'], 'number', 'min' => 1, 'max' => 128],
+            [['width', 'height'], 'heightValidator'],
+        ];
+    }
+
+    public function heightValidator($model, $attribute, $rule){
+        foreach($model::$supportedSizes as $size){
+            if($model->$attribute == $size){
+                return true;
+            }
+        }
+        $sizes = implode(', ', $model::$supportedSizes);
+        $model->addError($attribute, "$attribute size not supported. Only $sizes are supported.");
+    }
 
     public function generate(){
+        if(!isset($_SESSION['id'])){
+            $_SESSION['id'] = uniqid();
+        }
+        $padding = $this->padding;
 
-        $padding = 20;
+        $m = max($this->width, $this->height);
 
-        $width = 512;
-        $height = 512;
+        $width = $m;
+        $height = $m;
 
-        $b = 5;
+        $b = $this->blocks;
 
         $desiredBlocksY = $desiredBlocksX = $b;
 
@@ -45,9 +77,6 @@ class DisplayPicture{
             $height,
             $fill
         );
-
-
-        // $arr
 
 
 
@@ -159,11 +188,17 @@ class DisplayPicture{
             }
         }
 
+        $sessionId = $_SESSION['id'];
+
+        if(!is_dir('generated')){
+            mkdir('generated', 0777, true);
+        }
 
         //if($this->completed){
-            header("Content-Type: image/jpg");
-            imagejpeg($img,"myimg.jpg",100);
-            readfile('myimg.jpg');
+            // header("Content-Type: image/jpg");
+            imagejpeg($img,"generated/$sessionId.jpg",100);
+            // readfile('myimg.jpg');
+            return "$sessionId.jpg";
             exit();
         //} else {
         //    return $this->generate();
